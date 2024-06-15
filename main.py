@@ -7,55 +7,74 @@ def get_birthday():
     birthday = None
     while not birthday:
         try:
-            birthday = parse(input("Please enter your birthday (YYYY-MM-DD):   "))
+            birthday = parse(input("Please enter your birthday (YYYY-MM-DD): "))
         except ParserError:
             print("That was not a valid date! Please try again.\n")
     return birthday.date()
 
-def get_charts_and_dates():
+def get_dates():
     try:
-        charts = requests.get("https://raw.githubusercontent.com/mhollingshead/billboard-hot-100/main/all.json")
         dates = requests.get("https://raw.githubusercontent.com/mhollingshead/billboard-hot-100/main/valid_dates.json")
-        charts.raise_for_status()
         dates.raise_for_status()
     except requests.exceptions.HTTPError:
         print("An error occured fetching the data, sorry!")
     except Exception as err:
         print("There was an error!\n {err}")
-    return charts.json(), dates.json()
+    return dates.json()
 
 def relevant_dates(birthday, dates):
     today = datetime.date.today()
     list_of_relevant_dates = list()
     while birthday < today:
-        for date in dates:
-            if date < birthday:
-                prev_date = date
-                continue
-            elif date == birthday:
-                list_of_relevant_dates.append(date)
-                break
-            else:
-                list_of_relevant_dates.append(prev_date)
-                break
+        # the min() function sorts by timedelta between birthday and date. abs() is required because of negative values,
+        # we want values closest to 0.
+        list_of_relevant_dates.append(min(dates, key=lambda d: abs(birthday-d) if d <= birthday else datetime.timedelta.max))
         birthday = birthday + relativedelta(years=1)
     return list_of_relevant_dates
 
+def relevant_charts(list_of_dates):
+    URL = "https://raw.githubusercontent.com/mhollingshead/billboard-hot-100/main/date/"
+    list_of_charts = list()
+    for date in list_of_dates:
+        try:
+            chart = requests.get("{}{}.json".format(URL, date.isoformat()))
+            list_of_charts.append(chart.json())
+        except requests.exceptions.HTTPError:
+            pass
+    return list_of_charts
 
-
-def relevant_charts(list_of_charts, birthday):
-    relevant_charts_list = list()
-    pass
+def get_songs(list_of_charts, number_of_songs):
+    list_of_songs = list()
+    for chart in list_of_charts:
+        songs = list()
+        i = 0
+        while i < number_of_songs:
+            try:
+                songs.append("{}: {} by {}".format(i + 1, chart['data'][i]['song'], chart['data'][i]['artist']))
+                i += 1
+            except IndexError:
+                break
+        year_and_songs = [chart['date'], songs]
+        list_of_songs.append(year_and_songs)
+    return list_of_songs
 
 def main():
     birthday = get_birthday()
+    while True:
+        try:
+            number_of_songs = int(input("How many songs do you want per year?: "))
+            break
+        except ValueError:
+            print("That is not a number! Please try again. ")
     try:
-        list_of_charts, list_of_dates = get_charts_and_dates()
+        list_of_parsed_dates = [ parse(date).date() for date in get_dates() ]
     except Exception:
         exit()
-    list_of_parsed_dates = [ parse(date).date() for date in list_of_dates ]
-    print(relevant_dates(birthday, list_of_parsed_dates))
-
+    list_of_songs = get_songs(relevant_charts(relevant_dates(birthday, list_of_parsed_dates)), number_of_songs)
+    for chart_date, songlist in list_of_songs:
+        print("{}:".format(parse(chart_date).strftime("%Y")))
+        for song in songlist:
+            print("\t{}".format(song))
 
 if __name__ == "__main__":
     main()
