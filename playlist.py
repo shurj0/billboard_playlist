@@ -35,8 +35,6 @@ def relevant_charts(list_of_dates):
     return list_of_charts
 
 def get_songs(list_of_charts, number_of_songs):
-    """ Returns a list of list [chart_date, song_tuple_list]
-        song_tuple_list is a list of song_tuples, which are formatted (song title, song artist)"""
     dict_of_songs = dict()
     for chart in list_of_charts:
         songs = dict()
