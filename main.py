@@ -1,16 +1,7 @@
 import requests
 import datetime
 from dateutil.parser import parse, ParserError
-from dateutil.relativedelta import relativedelta
-
-def get_birthday():
-    birthday = None
-    while not birthday:
-        try:
-            birthday = parse(input("Please enter your birthday (YYYY-MM-DD): "))
-        except ParserError:
-            print("That was not a valid date! Please try again.\n")
-    return birthday.date()
+from dateutil.relativedelta import relativedelta  
 
 def get_dates():
     try:
@@ -44,13 +35,15 @@ def relevant_charts(list_of_dates):
     return list_of_charts
 
 def get_songs(list_of_charts, number_of_songs):
+    """ Returns a list of list [chart_date, song_tuple_list]
+        song_tuple_list is a list of song_tuples, which are formatted (song title, song artist)"""
     list_of_songs = list()
     for chart in list_of_charts:
         songs = list()
         i = 0
         while i < number_of_songs:
             try:
-                songs.append("{}: {} by {}".format(i + 1, chart['data'][i]['song'], chart['data'][i]['artist']))
+                songs.append((chart['data'][i]['song'], chart['data'][i]['artist']))
                 i += 1
             except IndexError:
                 break
@@ -58,20 +51,26 @@ def get_songs(list_of_charts, number_of_songs):
         list_of_songs.append(year_and_songs)
     return list_of_songs
 
+def get_birthday_songs(birthday, number_of_songs):
+    list_of_parsed_dates = [ parse(date).date() for date in get_dates() ]
+    list_of_songs = get_songs(relevant_charts(relevant_dates(birthday, list_of_parsed_dates)), number_of_songs)
+    return list_of_songs
+
+
 def main():
-    birthday = get_birthday()
+    birthday = None
+    while not birthday:
+        try:
+            birthday = parse(input("Please enter your birthday (YYYY-MM-DD): ")).date()
+        except ParserError:
+            print("That was not a valid date! Please try again.\n")
     while True:
         try:
             number_of_songs = int(input("How many songs do you want per year?: "))
             break
         except ValueError:
             print("That is not a number! Please try again. ")
-    try:
-        list_of_parsed_dates = [ parse(date).date() for date in get_dates() ]
-    except Exception:
-        exit()
-    list_of_songs = get_songs(relevant_charts(relevant_dates(birthday, list_of_parsed_dates)), number_of_songs)
-    for chart_date, songlist in list_of_songs:
+    for chart_date, songlist in get_birthday_songs(birthday, number_of_songs):
         print("{}:".format(parse(chart_date).strftime("%Y")))
         for song in songlist:
             print("\t{}".format(song))
